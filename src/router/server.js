@@ -5,6 +5,8 @@ import createLocation from 'history/lib/createLocation';
 import createMemoryHistory from 'history/lib/createMemoryHistory';
 import WithStylesContext from './../components/WithStylesContext';
 import addResView from 'sails/lib/hooks/views/res.view';
+import { Provider } from 'react-redux';
+import { syncHistoryWithStore } from 'react-router-redux';
 
 /**
  * Serve a rendered route to a client request - uses req.url
@@ -17,11 +19,13 @@ export default function (req, res) {
   }
 
   const css = [];
-  const history = createMemoryHistory();
   const location = createLocation(req.url);
   const routes = sails.hooks[req.reactHookConfigKey].__routesCompiled;
   const withStyles = sails.config[req.reactHookConfigKey].isomorphicStyleLoader;
-
+  const redux = sails.config[req.reactHookConfigKey].redux;
+  const history = redux ?
+                  syncHistoryWithStore(createMemoryHistory(), redux.store) :
+                  createMemoryHistory();
   let reactHtmlString = '';
 
   sailsReactRouter(
@@ -32,6 +36,13 @@ export default function (req, res) {
     res
   ).then((reactElement) => { /* eslint consistent-return:0 */
     try {
+      if (redux) {
+        reactElement = (
+          <Provider store={redux.store}>
+            {reactElement}
+          </Provider>
+        );
+      }
       if (withStyles) {
         // also extract inline css for insertion to page header.
         reactHtmlString = renderToString(

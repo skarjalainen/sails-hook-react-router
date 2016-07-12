@@ -6,6 +6,12 @@
 
 Bring the power of [React Router](https://github.com/reactjs/react-router) to your SailsJS application. This configurable hook is designed for universal/isomorphic React applications, as the routes are handled both on the server and client.
 
+## Fork info
+
+- Supports redux
+- Supports react-router-redux
+- Supports Redux DevTools chrome extension
+
 ## Installation
 ### NPM Install
 ```sh

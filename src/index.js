@@ -38,6 +38,13 @@ export default function (sails) {
         // Note: this only applies to server side rendering - client rendered routes will always be
         // well... client rendered :P
         routingPreference: 'react',  // react or sails
+
+        // to enable redux, pass object of parameters
+        // redux : {
+        //   store: STORE_INSTANCE,
+        //   initialActions: [ ACTIONS_TO_EXECUTE ]
+        // }
+        redux: false,
       },
     },
 

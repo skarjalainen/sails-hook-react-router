@@ -4,10 +4,13 @@ import { sailsReactRouter } from './';
 import createLocation from 'history/lib/createLocation';
 import createBrowserHistory from 'history/lib/createBrowserHistory';
 import WithStylesContext from './../components/WithStylesContext';
+import { Provider } from 'react-redux';
+import { syncHistoryWithStore } from 'react-router-redux';
 
 const defaultClientOptions = {
   reactRootElementId: 'react-root',
   isomorphicStyleLoader: true,
+  redux: false,
 };
 
 /**
@@ -28,7 +31,9 @@ export default function (routes, props, options) {
   }
 
   const location = createLocation(document.location.pathname, document.location.search);
-  const history = createBrowserHistory();
+  const history = options.redux ?
+                  syncHistoryWithStore(createBrowserHistory(), options.redux.store) :
+                  createBrowserHistory();
 
   if (props && window.__ReactInitState__) {
     Object.assign(window.__ReactInitState__, props);
@@ -37,6 +42,14 @@ export default function (routes, props, options) {
   return sailsReactRouter(routes, location, history, { state: window.__ReactInitState__ })
     .then((component) => {
       let renderComponents;
+
+      if (options.redux) {
+        component = (
+          <Provider store={options.store}>
+            {component}
+          </Provider>
+        );
+      }
 
       if (options.isomorphicStyleLoader) {
         renderComponents = (
