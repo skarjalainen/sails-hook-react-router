@@ -36,14 +36,17 @@ export default function (req, res) {
     res
   ).then((reactElement) => { /* eslint consistent-return:0 */
     try {
-      if (redux) {
-        reactElement = (
+      if (redux && withStyles) {
+        reactHtmlString = renderToString(
           <Provider store={redux.store}>
-            {reactElement}
+            <WithStylesContext onInsertCss={
+              (...styles) => styles.forEach(style => css.push(style._getCss()))}
+            >
+              {reactElement}
+            </WithStylesContext>
           </Provider>
         );
-      }
-      if (withStyles) {
+      } else if (withStyles) {
         // also extract inline css for insertion to page header.
         reactHtmlString = renderToString(
           <WithStylesContext onInsertCss={

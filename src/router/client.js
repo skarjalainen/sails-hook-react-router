@@ -43,15 +43,17 @@ export default function (routes, props, options) {
     .then((component) => {
       let renderComponents;
 
-      if (options.redux) {
-        component = (
-          <Provider store={options.store}>
-            {component}
+      if (options.redux && options.isomorphicStyleLoader) {
+        renderComponents = (
+          <Provider store={options.redux.store}>
+            <WithStylesContext onInsertCss={
+              (...styles) => styles.forEach(style => style._insertCss()) }
+            >
+              {component}
+            </WithStylesContext>
           </Provider>
         );
-      }
-
-      if (options.isomorphicStyleLoader) {
+      } else if (options.isomorphicStyleLoader) {
         renderComponents = (
           <WithStylesContext onInsertCss={
             (...styles) => styles.forEach(style => style._insertCss()) }
