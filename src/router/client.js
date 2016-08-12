@@ -39,7 +39,6 @@ export default function (routes, props, options) {
   if (options.redux) {
     Iso.bootstrap((state, node) => {
       let io = sailsIOClient(socketIOClient);
-      //io.sails.url = 'http://dashboard.local';
       store = createStore(
         combineReducers({...options.redux.reducers, routing: routerReducer}),
         state,
