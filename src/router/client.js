@@ -5,7 +5,12 @@ import createLocation from 'history/lib/createLocation';
 import createBrowserHistory from 'history/lib/createBrowserHistory';
 import WithStylesContext from './../components/WithStylesContext';
 import { Provider } from 'react-redux';
-import { syncHistoryWithStore } from 'react-router-redux';
+import { routerReducer, syncHistoryWithStore } from 'react-router-redux';
+import { createStore, combineReducers, applyMiddleware, compose } from 'redux';
+import thunk from 'redux-thunk';
+import socketIOClient from 'socket.io-client';
+import sailsIOClient from 'sails.io.js';
+import Iso from "iso";
 
 const defaultClientOptions = {
   reactRootElementId: 'react-root',
@@ -30,9 +35,37 @@ export default function (routes, props, options) {
     options = Object.assign(defaultClientOptions, options);
   }
 
+  var store;
+  if (options.redux) {
+    Iso.bootstrap((state, node) => {
+      let io = sailsIOClient(socketIOClient);
+      //io.sails.url = 'http://dashboard.local';
+      store = createStore(
+        combineReducers({...options.redux.reducers, routing: routerReducer}),
+        state,
+        compose(
+          applyMiddleware(thunk),
+          window.devToolsExtension ? window.devToolsExtension() : f => f
+        )
+      );
+      //keep server session in sync with store
+      store.subscribe(() => {
+        let storeState = store.getState();
+        if (storeState) {
+          io.socket.post('/api/session', { state: storeState }, (body, JWR) => {
+            if (JWR.statusCode === 200) {
+            } else {
+              console.error('Failed to save session state: ', JWR.statusCode);
+            }
+          });
+        }
+      });
+    });
+  }
+
   const location = createLocation(document.location.pathname, document.location.search);
   const history = options.redux ?
-                  syncHistoryWithStore(createBrowserHistory(), options.redux.store) :
+                  syncHistoryWithStore(createBrowserHistory(), store) :
                   createBrowserHistory();
 
   if (props && window.__ReactInitState__) {
@@ -45,7 +78,7 @@ export default function (routes, props, options) {
 
       if (options.redux && options.isomorphicStyleLoader) {
         renderComponents = (
-          <Provider store={options.redux.store}>
+          <Provider store={store}>
             <WithStylesContext onInsertCss={
               (...styles) => styles.forEach(style => style._insertCss()) }
             >
@@ -60,6 +93,12 @@ export default function (routes, props, options) {
           >
             {component}
           </WithStylesContext>
+        );
+      } else if (options.redux) {
+        renderComponents = (
+          <Provider store={store}>
+            {component}
+          </Provider>
         );
       } else {
         renderComponents = component;

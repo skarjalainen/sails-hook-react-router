@@ -17,10 +17,14 @@
     "asset pipeline"
   ],
   "dependencies": {
+    "iso": "^5.2.0",
     "react-redux": "^4.4.5",
     "react-router-redux": "^4.0.5",
     "redux": "^3.5.2",
-    "sails": "^0.12.3"
+    "redux-thunk": "^2.1.0",
+    "sails": "^0.12.3",
+    "sails.io.js": "^0.13.8",
+    "socket.io-client": "^1.4.8"
   },
   "devDependencies": {
     "babel-cli": "^6.7.5",

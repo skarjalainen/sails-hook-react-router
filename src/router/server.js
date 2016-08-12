@@ -6,7 +6,10 @@ import createMemoryHistory from 'history/lib/createMemoryHistory';
 import WithStylesContext from './../components/WithStylesContext';
 import addResView from 'sails/lib/hooks/views/res.view';
 import { Provider } from 'react-redux';
-import { syncHistoryWithStore } from 'react-router-redux';
+import { syncHistoryWithStore, routerReducer } from 'react-router-redux';
+import { createStore, combineReducers, applyMiddleware } from 'redux';
+import thunk from 'redux-thunk';
+import Iso from "iso";
 
 /**
  * Serve a rendered route to a client request - uses req.url
@@ -18,15 +21,43 @@ export default function (req, res) {
     return;
   }
 
+  const redux = sails.config[req.reactHookConfigKey].redux;
+  var store;
+  var result;
+
+  if (redux) {
+    let state = (req.session && req.session.state) ? req.session.state : {};
+    store = createStore(
+      combineReducers({...redux.reducers, routing: routerReducer}),
+      state,
+      applyMiddleware(thunk)
+    );
+    //keep server session in sync with store
+    store.subscribe(() => {
+      let storeState = store.getState();
+      if (storeState) {
+        req.session.state = storeState;
+      }
+    });
+  }
+
   const css = [];
   const location = createLocation(req.url);
   const routes = sails.hooks[req.reactHookConfigKey].__routesCompiled;
   const withStyles = sails.config[req.reactHookConfigKey].isomorphicStyleLoader;
-  const redux = sails.config[req.reactHookConfigKey].redux;
   const history = redux ?
-                  syncHistoryWithStore(createMemoryHistory(), redux.store) :
+                  syncHistoryWithStore(createMemoryHistory(), store) :
                   createMemoryHistory();
   let reactHtmlString = '';
+
+  if (redux) {
+    if (!req.session.state) {
+      sails.log.info('Initial session state created');
+      req.session.state = store.getState();
+    } else {
+      sails.log.info('Initial session state found');
+    }
+  }
 
   sailsReactRouter(
     routes,
@@ -38,7 +69,7 @@ export default function (req, res) {
     try {
       if (redux && withStyles) {
         reactHtmlString = renderToString(
-          <Provider store={redux.store}>
+          <Provider store={store}>
             <WithStylesContext onInsertCss={
               (...styles) => styles.forEach(style => css.push(style._getCss()))}
             >
@@ -54,6 +85,12 @@ export default function (req, res) {
           >
             {reactElement}
           </WithStylesContext>
+        );
+      } else if (redux) {
+        reactHtmlString = renderToString(
+          <Provider store={store}>
+            {reactElement}
+          </Provider>
         );
       } else {
         reactHtmlString = renderToString(reactElement);
@@ -77,12 +114,23 @@ export default function (req, res) {
       req.react.state = JSON.stringify(req.react.state);
     }
 
-    const result = {
-      locals: {
-        react: req.react,
-      },
-      body: reactHtmlString,
-    };
+    if (redux) {
+      var iso = new Iso();
+      iso.add(reactHtmlString, store.getState());
+      result = {
+        locals: {
+          react: req.react,
+        },
+        body: iso.render(),
+      };
+    } else {
+      result = {
+        locals: {
+          react: req.react,
+        },
+        body: reactHtmlString,
+      };
+    }
 
     // add the sails res.view onto res if we don't have it
     // usually not there if it's a 'before' route.
